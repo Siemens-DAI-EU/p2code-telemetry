@@ -1,0 +1,16 @@
+apiVersion: 1
+
+datasources:
+  - name: Mimir-P2CODE
+    type: prometheus
+    access: proxy
+    orgId: 1
+    url: http://mimir:9009/prometheus
+    version: 1
+    editable: true
+    jsonData:
+      httpHeaderName1: "X-Scope-OrgID"
+      alertmanagerUid: "alertmanager"
+    secureJsonData:
+      httpHeaderValue1: "p2code"
+    isDefault: true

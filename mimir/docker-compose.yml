@@ -1,0 +1,109 @@
+version: "3.4"
+services:
+  minio:
+    image: minio/minio
+    entrypoint: [""]
+    command: ["sh", "-c", "mkdir -p /data/mimir && minio server --quiet /data"]
+    environment:
+      - MINIO_ROOT_USER=${MINIO_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_PW}
+    volumes:
+      - minio-data:/data
+
+  grafana_prod:
+    profiles: [prod]
+    image: grafana/grafana:latest
+    pull_policy: always
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_USERS_DEFAULT_THEME=dark
+      - GF_LOG_MODE=console
+      - GF_LOG_LEVEL=critical
+      - GF_SERVER_HOSTNAME=${GF_EXT_HOSTNAME}
+      - GF_SERVER_ROOT_URL=${GF_EXT_HOSTNAME}
+    extra_hosts:
+      - "${STATIC_THANOS_HOSTNAME}"
+    volumes:
+      - ./config/defaults.ini:/usr/share/grafana/conf/default.ini:ro
+      - ./config/grafana-provisioning-dashboards.yaml:/etc/grafana/provisioning/dashboards/provisioning-dashboards.yaml:ro
+      - ./config/grafana-provisioning-datasources.yaml:/etc/grafana/provisioning/datasources/provisioning-datasources.yaml:ro
+    ports:
+      - 9000:3000
+
+  grafana_test:
+    profiles: [test]
+    image: grafana/grafana:latest
+    pull_policy: always
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_USERS_DEFAULT_THEME=dark
+      - GF_LOG_MODE=console
+      - GF_LOG_LEVEL=critical
+    volumes:
+      - ./config/defaults.ini:/usr/share/grafana/conf/default.ini:ro
+      - ./config/grafana-provisioning-dashboards.yaml:/etc/grafana/provisioning/dashboards/provisioning-dashboards.yaml:ro
+      - ./config/grafana-provisioning-datasources.yaml:/etc/grafana/provisioning/datasources/provisioning-datasources.yaml:ro
+    ports:
+      - 9000:3000
+
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --log.level=info
+    volumes:
+      - ${PWD}/config/prometheus.yaml:/etc/prometheus/prometheus.yaml
+    depends_on:
+      - "mimir"
+    ports:
+      - 9007:9090
+
+  load-balancer:
+    profiles: [prod]
+    image: nginx:latest
+    volumes:
+      - ${PWD}/config/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - "mimir"
+    ports:
+      - 9009:9009
+
+  mimir:
+    image: grafana/mimir:latest
+    command: ["--config.file=/etc/mimir.yaml", "-tenant-federation.enabled=true", "-ruler.tenant-federation.enabled=true"]
+    hostname: mimir-1
+    depends_on:
+      - minio
+    volumes:
+      - ${PWD}/config/mimir.yaml:/etc/mimir.yaml
+      - mimir-data:/data
+    ports:
+      - 9008:9009
+
+  mimirtool:
+    image: grafana/mimirtool
+
+  cadvisor:
+    profiles: [prod]
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+    - 8080:8080
+    volumes:
+    - /:/rootfs:ro
+    - /var/run:/var/run:rw
+    - /sys:/sys:ro
+    - /var/lib/docker/:/var/lib/docker:ro
+    depends_on:
+    - redis
+
+  redis:
+    profiles: [prod]
+    image: redis:latest
+    container_name: redis
+
+volumes:
+  mimir-data:
+  minio-data:

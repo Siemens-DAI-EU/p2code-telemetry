@@ -1,0 +1,162 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 6,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "webstore-metrics"
+      },
+      "gridPos": {
+        "h": 21,
+        "w": 9,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "<style>\n  iframe {\n    width: 1px;\n    min-width: 100%;\n    height: 800px;\n  }\n</style>\n\n<script>\n(function(){\n    // Note the id, we need to set this correctly on the script tag responsible for\n    // requesting this file.\n    var me = document.getElementById('my-iframe-content-loader-script-tag');\n\n    function loadIFrame() {\n        var ifrm = document.createElement('iframe');\n        ifrm.id = 'my-iframe-identifier';\n        ifrm.setAttribute('src', 'http://www.google.com');\n        ifrm.style.width = '100%';\n        ifrm.style.border = 0;\n        // we initially hide the iframe to avoid seeing the iframe resizing\n        ifrm.style.opacity = 0;\n        ifrm.onload = function () {\n            // this will resize our iframe\n            iFrameResize({ log: true }, '#my-iframe-identifier');\n            // make our iframe visible\n            ifrm.style.opacity = 1;\n        };\n\n        me.insertAdjacentElement('afterend', ifrm);\n    }\n\n    if (!window.iFrameResize) {\n        // We first need to ensure we inject the js required to resize our iframe.\n\n        var resizerScriptTag = document.createElement('script');\n        resizerScriptTag.type = 'text/javascript';\n\n        // IMPORTANT: insert the script tag before attaching the onload and setting the src.\n        me.insertAdjacentElement('afterend', ifrm);\n\n        // IMPORTANT: attach the onload before setting the src.\n        resizerScriptTag.onload = loadIFrame;\n\n        // This a CDN resource to get the iFrameResizer code.\n        // NOTE: You must have the below \"coupled\" script hosted by the content that\n        // is loaded within the iframe:\n        // https://unpkg.com/iframe-resizer@3.5.14/js/iframeResizer.contentWindow.min.js\n        resizerScriptTag.src = 'https://unpkg.com/iframe-resizer@3.5.14/js/iframeResizer.min.js';\n    } else {\n        // Cool, the iFrameResizer exists so we can just load our iframe.\n        loadIFrame();\n    }    \n}())\n</script>\n\n<iframe id=\"myIframe\" src=\"http://localhost:8501/?start=${__from}&end=${__to}\"></iframe>\n<script>\n  iFrameResize({ log: true }, '#myIframe')\n  var timeFilter = $__timeFilter\n</script>",
+        "mode": "html"
+      },
+      "pluginVersion": "10.2.0",
+      "title": "Panel Title",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "webstore-metrics"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 15,
+        "x": 9,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "webstore-metrics"
+          },
+          "editorMode": "code",
+          "expr": "duration_milliseconds_sum",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Panel Title",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 38,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "New dashboard",
+  "uid": "fd3553c9-cdbc-4272-a9d6-8ef71f1b1400",
+  "version": 1,
+  "weekStart": ""
+}

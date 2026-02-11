@@ -1,0 +1,166 @@
+version: '3.9'
+x-default-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+#networks:
+#  default:
+#    name: opentelemetry-demo
+#    driver: bridge
+
+networks:
+  default:
+    external:
+      name: otel_tempo
+
+services:
+  redis:
+    profiles:
+      - otel
+    image: redis:latest
+    container_name: redis
+    ports:
+    - 6379:6379
+    
+  cadvisor:
+    profiles:
+      - otel
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+    - 8085:8080
+    volumes:
+    - /:/rootfs:ro
+    - /var/run:/var/run:rw
+    - /sys:/sys:ro
+    - /var/lib/docker/:/var/lib/docker:ro
+    depends_on:
+    - redis
+    
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: grafana
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    restart: always
+    environment:
+      - "GF_INSTALL_PLUGINS=grafana-opensearch-datasource"
+    volumes:
+      - ./src/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./src/grafana/provisioning/:/etc/grafana/provisioning/
+    ports:
+      - "${GRAFANA_SERVICE_PORT}"
+    logging: *logging
+
+  # OpenTelemetry Collector
+  otelcol:
+    profiles:
+      - otel
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel-col
+    deploy:
+      resources:
+        limits:
+          memory: 125M
+    restart: unless-stopped
+    command: [ "--config=/etc/otelcol-config.yml", "--config=/etc/otelcol-config-extras.yml" ]
+    volumes:
+      - ./src/otelcollector/otelcol-config.yml:/etc/otelcol-config.yml
+      - ./src/otelcollector/otelcol-config-extras.yml:/etc/otelcol-config-extras.yml
+    ports:
+      - "4317"          # OTLP over gRPC receiver
+      - "4318"          # OTLP over HTTP receiver
+    depends_on:
+      - jaeger
+    logging: *logging
+    environment:
+      - ENVOY_PORT
+
+  # Prometheus
+  prometheus:
+    image: quay.io/prometheus/prometheus:v2.48.1
+    container_name: prometheus
+    command:
+      - --web.console.templates=/etc/prometheus/consoles
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --storage.tsdb.retention.time=1h
+      - --config.file=/etc/prometheus/prometheus-config.yaml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+      - --web.route-prefix=/
+      - --enable-feature=exemplar-storage
+      - --enable-feature=otlp-write-receiver
+    volumes:
+      - ./src/prometheus/prometheus-config.yaml:/etc/prometheus/prometheus-config.yaml
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    ports:
+      - "${PROMETHEUS_SERVICE_PORT}:${PROMETHEUS_SERVICE_PORT}"
+    logging: *logging
+
+  opensearch:
+    profiles:
+      - otel
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch
+    environment:
+      - cluster.name=demo-cluster
+      - node.name=demo-node
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      - "DISABLE_SECURITY_PLUGIN=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+    logging: *logging
+
+  dataprepper:
+    profiles:
+      - otel
+    image: opensearchproject/data-prepper:latest
+    volumes:
+      - ./src/opensearch/pipelines.yaml:/usr/share/data-prepper/pipelines/pipelines.yaml
+      - ./src/opensearch/data-prepper-config.yaml:/usr/share/data-prepper/config/data-prepper-config.yaml
+    ports:
+      - "21892"
+    logging: *logging
+    
+  jaeger:
+    profiles:
+      - otel
+    image: jaegertracing/all-in-one:1.52
+    container_name: jaeger
+    command:
+    #8000 def
+      - "--memory.max-traces=800000"
+      - "--query.base-path=/jaeger/ui"
+      - "--prometheus.server-url=http://${PROMETHEUS_ADDR}"
+      - "--prometheus.query.normalize-calls=true"
+      - "--prometheus.query.normalize-duration=true"
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+    restart: unless-stopped
+    ports:
+      - "${JAEGER_SERVICE_PORT}:${JAEGER_SERVICE_PORT}"         # Jaeger UI
+      - "4317"                           # OTLP gRPC default port
+    environment:
+      - METRICS_STORAGE_TYPE=prometheus
+    logging: *logging
+

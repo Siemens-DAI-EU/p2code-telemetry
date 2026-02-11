@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 5s
+  external_labels:
+    cluster: demo
+    namespace: demo
+
+scrape_configs:
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          pod: 'cadvisor'
+
+remote_write:
+  - url: 'http://mimir-1:9009/api/v1/push'
+   # Add X-Scope-OrgID header so that Mimir knows what tenant the remote write data should be stored in.
+   # In this case, our tenant is "demo"
+    tls_config:
+      insecure_skip_verify: true
+    headers:
+      X-Scope-OrgID: demo
+
+    write_relabel_configs:
+      # drop specific metrics from remote-write
+    - source_labels: ['__name__']
+      regex: 'go_gc_.*'
+      action: 'drop'
